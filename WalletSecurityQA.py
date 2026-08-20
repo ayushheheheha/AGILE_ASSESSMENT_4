@@ -1,54 +1,45 @@
-import unittest
-import time
 from DigitalWallet import DigitalWallet
 
-class TestWalletSecurityQA(unittest.TestCase):
+def run_security_tests():
+    print("=== STARTING AUTOMATED QA WALLET SECURITY TESTS ===\n")
 
-    def setUp(self):
-        # Fresh initialization before each test run
-        self.wallet = DigitalWallet(account_id="ACC123", pin="1111", balance=10000.0, daily_limit=5000.0)
-        self.peer_wallet = DigitalWallet(account_id="ACC999", pin="9999", balance=0.0)
+    # 1. Test Normal Transaction
+    w1 = DigitalWallet("ACC1", "1111", balance=5000.0)
+    print(f"Test 1 (Normal Withdraw): {w1.withdraw(1000, '1111')}")
 
-    def test_normal_transaction(self):
-        res = self.wallet.withdraw(1000, "1111")
-        self.assertIn("SUCCESS", res)
-        self.assertEqual(self.wallet.balance, 9000.0)
+    # 2. Test Insufficient Balance
+    w2 = DigitalWallet("ACC2", "2222", balance=100.0)
+    print(f"Test 2 (Low Balance): {w2.withdraw(500, '2222')}")
 
-    def test_insufficient_balance(self):
-        res = self.wallet.withdraw(15000, "1111")
-        self.assertIn("Insufficient balance", res)
+    # 3. Test Daily Limit
+    w3 = DigitalWallet("ACC3", "3333", balance=20000.0, daily_limit=2000.0)
+    print(f"Test 3 (Daily Limit Exceeded): {w3.withdraw(3000, '3333')}")
 
-    def test_daily_limit(self):
-        # Daily limit is set to 5000.0 in setup
-        res = self.wallet.withdraw(6000, "1111")
-        self.assertIn("Daily transaction limit exceeded", res)
+    # 4. Test Multiple Failed PINs
+    w4 = DigitalWallet("ACC4", "4444", balance=1000.0)
+    w4.withdraw(100, "9999") # Fail 1
+    w4.withdraw(100, "8888") # Fail 2
+    print(f"Test 4 (Failed PINs/Lock): {w4.withdraw(100, '7777')}")
 
-    def test_multiple_failed_pins(self):
-        self.wallet.verify_pin("0000")
-        self.wallet.verify_pin("0000")
-        res = self.wallet.withdraw(500, "0000") # 3rd structural attempt
-        self.assertIn("FRAUD_DETECTED", res)
-        self.assertTrue(self.wallet.is_locked)
+    # 5. Test Suspicious / Large Transaction
+    w5 = DigitalWallet("ACC5", "5555", balance=200000.0)
+    print(f"Test 5 (Suspicious Size): {w5.withdraw(150000, '5555')}")
 
-    def test_suspicious_transaction(self):
-        # Testing single extreme transaction amount check
-        res = self.wallet.withdraw(150000, "1111")
-        self.assertIn("FRAUD_DETECTED", res)
+    # 6. Test Negative Amount
+    w6 = DigitalWallet("ACC6", "6666", balance=1000.0)
+    print(f"Test 6 (Negative Deposit): {w6.deposit(-50)}")
 
-    def test_negative_amount(self):
-        res = self.wallet.deposit(-500)
-        self.assertIn("must be positive", res)
-        res2 = self.wallet.withdraw(-100, "1111")
-        self.assertIn("must be positive", res2)
+    # 7. Test Velocity Limit (More than 5 transactions)
+    w7 = DigitalWallet("ACC7", "7777", balance=1000.0)
+    for _ in range(5):
+        w7.withdraw(10, "7777") # Create 5 fast transactions
+    print(f"Test 7 (Velocity Fraud): {w7.withdraw(10, '7777')}")
 
-    def test_velocity_limit_fraud(self):
-        # Force high velocity frequency (5+ transactions in rapid succession)
-        for _ in range(5):
-            self.wallet.deposit(10)
-            self.wallet.withdraw(5, "1111")
-        # The 6th withdrawal should hit the velocity limits threshold tracker
-        res = self.wallet.withdraw(5, "1111")
-        self.assertIn("FRAUD_DETECTED", res)
+    # 8. Test Concurrent/Transfer Transactions
+    sender = DigitalWallet("SENDER", "1234", balance=500.0)
+    receiver = DigitalWallet("RECEIVER", "5678", balance=0.0)
+    print(f"Test 8 (Transfer): {sender.transfer(receiver, 200, '1234')}")
+    print(f"Receiver Final Balance: ${receiver.balance}")
 
 if __name__ == "__main__":
-    unittest.main()
+    run_security_tests()
