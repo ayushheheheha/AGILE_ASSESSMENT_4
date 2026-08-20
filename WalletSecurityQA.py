@@ -1,45 +1,38 @@
-from DigitalWallet import DigitalWallet
+# Assuming DigitalWallet is imported or in the same execution scope
+# from DigitalWallet import DigitalWallet
 
-def run_security_tests():
-    print("=== STARTING AUTOMATED QA WALLET SECURITY TESTS ===\n")
+def run_tests():
+    # 1. Normal Transaction & Insufficient Balance & Negative Amount
+    w = DigitalWallet(pin="1234", balance=2000)
+    assert w.transact("1234", 500) == "Success"
+    assert w.balance == 1500
+    assert w.transact("1234", 5000) == "Error: Insufficient balance"
+    assert w.transact("1234", -50) == "Error: Invalid amount"
 
-    # 1. Test Normal Transaction
-    w1 = DigitalWallet("ACC1", "1111", balance=5000.0)
-    print(f"Test 1 (Normal Withdraw): {w1.withdraw(1000, '1111')}")
+    # 2. Multiple Failed PINs (Account Lockout)
+    w.transact("9999", 10)  # Fail 1
+    w.transact("9999", 10)  # Fail 2
+    w.transact("9999", 10)  # Fail 3 (Locks)
+    assert w.transact("1234", 10) == "Locked: Too many failed PINs"
 
-    # 2. Test Insufficient Balance
-    w2 = DigitalWallet("ACC2", "2222", balance=100.0)
-    print(f"Test 2 (Low Balance): {w2.withdraw(500, '2222')}")
+    # 3. Fraud Checks (Large Amount & High Velocity)
+    w2 = DigitalWallet(pin="0000", balance=20000)
+    assert w2.transact("0000", 5001) == "Flagged Fraud: Large transaction"
+    
+    for _ in range(5): w2.transact("0000", 10)  # 5 rapid txs
+    assert w2.transact("0000", 10) == "Flagged Fraud: Too many transactions"
 
-    # 3. Test Daily Limit
-    w3 = DigitalWallet("ACC3", "3333", balance=20000.0, daily_limit=2000.0)
-    print(f"Test 3 (Daily Limit Exceeded): {w3.withdraw(3000, '3333')}")
+    # 4. Duplicate Transactions & Daily Limit Breach
+    w3 = DigitalWallet(pin="1111", balance=15000)
+    w3.transact("1111", 100)
+    assert w3.transact("1111", 100) == "Error: Duplicate transaction detected"
 
-    # 4. Test Multiple Failed PINs
-    w4 = DigitalWallet("ACC4", "4444", balance=1000.0)
-    w4.withdraw(100, "9999") # Fail 1
-    w4.withdraw(100, "8888") # Fail 2
-    print(f"Test 4 (Failed PINs/Lock): {w4.withdraw(100, '7777')}")
+    w4 = DigitalWallet(pin="1111", balance=15000)
+    w4.transact("1111", 4500)
+    w4.transact("1111", 4500)
+    assert w4.transact("1111", 2000) == "Error: Daily limit breached"
 
-    # 5. Test Suspicious / Large Transaction
-    w5 = DigitalWallet("ACC5", "5555", balance=200000.0)
-    print(f"Test 5 (Suspicious Size): {w5.withdraw(150000, '5555')}")
-
-    # 6. Test Negative Amount
-    w6 = DigitalWallet("ACC6", "6666", balance=1000.0)
-    print(f"Test 6 (Negative Deposit): {w6.deposit(-50)}")
-
-    # 7. Test Velocity Limit (More than 5 transactions)
-    w7 = DigitalWallet("ACC7", "7777", balance=1000.0)
-    for _ in range(5):
-        w7.withdraw(10, "7777") # Create 5 fast transactions
-    print(f"Test 7 (Velocity Fraud): {w7.withdraw(10, '7777')}")
-
-    # 8. Test Concurrent/Transfer Transactions
-    sender = DigitalWallet("SENDER", "1234", balance=500.0)
-    receiver = DigitalWallet("RECEIVER", "5678", balance=0.0)
-    print(f"Test 8 (Transfer): {sender.transfer(receiver, 200, '1234')}")
-    print(f"Receiver Final Balance: ${receiver.balance}")
+    print("✅ All automated QA test suite assertions passed successfully!")
 
 if __name__ == "__main__":
-    run_security_tests()
+    run_tests()
